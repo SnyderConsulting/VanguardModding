@@ -14,12 +14,20 @@ internal sealed class ModHost
 {
     private readonly Plugin _plugin;
     private readonly List<LoadedMod> _loadedMods = new List<LoadedMod>();
+    private readonly Queue<Action> _pendingCallbacks = new Queue<Action>();
+    private readonly object _pendingCallbacksLock = new object();
     private readonly HashSet<string> _resolverDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private readonly int _mainThreadId;
+    private int _simulationHookCount;
+    private int _executionHookCount;
+    private int _farmHookCount;
+    private int _gridHookCount;
     private bool _resolverAttached;
 
     internal ModHost(Plugin plugin)
     {
         _plugin = plugin;
+        _mainThreadId = Environment.CurrentManagedThreadId;
         ExternalModsDirectory = Path.Combine(Paths.BepInExRootPath, "TFWR.ModHarness", "mods");
         SharedSdkDirectory = Path.Combine(Paths.BepInExRootPath, "TFWR.ModHarness", "sdk");
         DataRootDirectory = Path.Combine(Paths.BepInExRootPath, "TFWR.ModHarness", "data");
@@ -58,66 +66,410 @@ internal sealed class ModHost
     internal void NotifySceneLoaded(Scene scene, LoadSceneMode mode)
     {
         SceneEvent sceneEvent = new SceneEvent(scene.name, mode.ToString(), scene.rootCount, scene.isLoaded);
-        foreach (LoadedMod loadedMod in _loadedMods)
+        DispatchCallback(() =>
         {
-            SafeInvoke(loadedMod, $"OnSceneLoaded({scene.name})", () => loadedMod.Instance.OnSceneLoaded(sceneEvent));
-        }
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                SafeInvoke(loadedMod, $"OnSceneLoaded({scene.name})", () => loadedMod.Instance.OnSceneLoaded(sceneEvent));
+            }
+        });
     }
 
     internal void NotifyMainSimReady()
     {
-        foreach (LoadedMod loadedMod in _loadedMods)
+        DispatchCallback(() =>
         {
-            SafeInvoke(loadedMod, "OnMainSimReady", loadedMod.Instance.OnMainSimReady);
-        }
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                SafeInvoke(loadedMod, "OnMainSimReady", loadedMod.Instance.OnMainSimReady);
+            }
+        });
     }
 
     internal void NotifyMainExecutionStarted(string fileName, int executionId, double timeFactor)
     {
         MainExecutionStartedEvent executionEvent = new MainExecutionStartedEvent(fileName, executionId, timeFactor);
-        foreach (LoadedMod loadedMod in _loadedMods)
+        DispatchCallback(() =>
         {
-            SafeInvoke(loadedMod, "OnMainExecutionStarted", () => loadedMod.Instance.OnMainExecutionStarted(executionEvent));
-        }
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                SafeInvoke(loadedMod, "OnMainExecutionStarted", () => loadedMod.Instance.OnMainExecutionStarted(executionEvent));
+            }
+        });
     }
 
     internal void NotifyMainExecutionStopped(int executionId, bool isSimulating)
     {
         MainExecutionStoppedEvent executionEvent = new MainExecutionStoppedEvent(executionId, isSimulating);
-        foreach (LoadedMod loadedMod in _loadedMods)
+        DispatchCallback(() =>
         {
-            SafeInvoke(loadedMod, "OnMainExecutionStopped", () => loadedMod.Instance.OnMainExecutionStopped(executionEvent));
-        }
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                SafeInvoke(loadedMod, "OnMainExecutionStopped", () => loadedMod.Instance.OnMainExecutionStopped(executionEvent));
+            }
+        });
     }
 
     internal void NotifyWorkspaceReady(int openWindowCount, int codeWindowCount)
     {
         WorkspaceEvent workspaceEvent = new WorkspaceEvent(openWindowCount, codeWindowCount);
-        foreach (LoadedMod loadedMod in _loadedMods)
+        DispatchCallback(() =>
         {
-            SafeInvoke(loadedMod, "OnWorkspaceReady", () => loadedMod.Instance.OnWorkspaceReady(workspaceEvent));
-        }
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                SafeInvoke(loadedMod, "OnWorkspaceReady", () => loadedMod.Instance.OnWorkspaceReady(workspaceEvent));
+            }
+        });
     }
 
     internal void NotifyCodeWindowOpened(string fileName)
     {
         CodeWindowEvent codeWindowEvent = new CodeWindowEvent(fileName);
-        foreach (LoadedMod loadedMod in _loadedMods)
+        DispatchCallback(() =>
         {
-            SafeInvoke(loadedMod, "OnCodeWindowOpened", () => loadedMod.Instance.OnCodeWindowOpened(codeWindowEvent));
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                SafeInvoke(loadedMod, "OnCodeWindowOpened", () => loadedMod.Instance.OnCodeWindowOpened(codeWindowEvent));
+            }
+        });
+    }
+
+    internal void NotifySimulationCreated(
+        string leaderboardType,
+        string leaderboardName,
+        string steamLeaderboardName,
+        bool resetUnlocks,
+        int unlockCount,
+        int worldWidth,
+        int worldHeight)
+    {
+        if (_simulationHookCount == 0)
+        {
+            return;
         }
+
+        SimulationCreatedEvent simulationEvent = new SimulationCreatedEvent(
+            leaderboardType,
+            leaderboardName,
+            steamLeaderboardName,
+            resetUnlocks,
+            unlockCount,
+            worldWidth,
+            worldHeight);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is ISimulationHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnSimulationCreated", () => hooks.OnSimulationCreated(simulationEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifySimulationRestored(string leaderboardType, double currentTimeSeconds, bool isExecuting, bool isPaused, int worldWidth, int worldHeight)
+    {
+        if (_simulationHookCount == 0)
+        {
+            return;
+        }
+
+        SimulationRestoredEvent simulationEvent = new SimulationRestoredEvent(
+            leaderboardType,
+            currentTimeSeconds,
+            isExecuting,
+            isPaused,
+            worldWidth,
+            worldHeight);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is ISimulationHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnSimulationRestored", () => hooks.OnSimulationRestored(simulationEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifySimulationSpeedChanged(
+        string leaderboardType,
+        double previousSpeedFactor,
+        double newSpeedFactor,
+        double previousOpDurationSeconds,
+        double newOpDurationSeconds)
+    {
+        if (_simulationHookCount == 0)
+        {
+            return;
+        }
+
+        SimulationSpeedChangedEvent simulationEvent = new SimulationSpeedChangedEvent(
+            leaderboardType,
+            previousSpeedFactor,
+            newSpeedFactor,
+            previousOpDurationSeconds,
+            newOpDurationSeconds);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is ISimulationHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnSimulationSpeedChanged", () => hooks.OnSimulationSpeedChanged(simulationEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyExecutionCreated(
+        int executionId,
+        string leaderboardType,
+        int stateCount,
+        int activeDroneCount,
+        bool isSingleDrone,
+        bool isStepByStepMode,
+        double currentTimeSeconds)
+    {
+        if (_executionHookCount == 0)
+        {
+            return;
+        }
+
+        ExecutionCreatedEvent executionEvent = new ExecutionCreatedEvent(
+            executionId,
+            leaderboardType,
+            stateCount,
+            activeDroneCount,
+            isSingleDrone,
+            isStepByStepMode,
+            currentTimeSeconds);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IExecutionHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnExecutionCreated", () => hooks.OnExecutionCreated(executionEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyExecutionStopped(
+        int executionId,
+        string leaderboardType,
+        int stateCount,
+        int activeDroneCount,
+        double globalOpCount,
+        bool wasPaused,
+        double currentTimeSeconds)
+    {
+        if (_executionHookCount == 0)
+        {
+            return;
+        }
+
+        ExecutionStoppedEvent executionEvent = new ExecutionStoppedEvent(
+            executionId,
+            leaderboardType,
+            stateCount,
+            activeDroneCount,
+            globalOpCount,
+            wasPaused,
+            currentTimeSeconds);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IExecutionHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnExecutionStopped", () => hooks.OnExecutionStopped(executionEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyUnlockChanged(string unlockName, int previousLevel, int newLevel)
+    {
+        if (_farmHookCount == 0)
+        {
+            return;
+        }
+
+        UnlockChangedEvent unlockEvent = new UnlockChangedEvent(unlockName, previousLevel, newLevel);
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IFarmHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnUnlockChanged", () => hooks.OnUnlockChanged(unlockEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyDroneAdded(int droneId, int sourceDroneId, int activeDroneCount, int mainDroneId, int droneGeneration)
+    {
+        if (_farmHookCount == 0)
+        {
+            return;
+        }
+
+        DroneAddedEvent droneEvent = new DroneAddedEvent(droneId, sourceDroneId, activeDroneCount, mainDroneId, droneGeneration);
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IFarmHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnDroneAdded", () => hooks.OnDroneAdded(droneEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyDroneRemoved(int droneId, bool wasMainDrone, int activeDroneCount, int mainDroneId, int droneGeneration)
+    {
+        if (_farmHookCount == 0)
+        {
+            return;
+        }
+
+        DroneRemovedEvent droneEvent = new DroneRemovedEvent(droneId, wasMainDrone, activeDroneCount, mainDroneId, droneGeneration);
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IFarmHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnDroneRemoved", () => hooks.OnDroneRemoved(droneEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyWorldGenerated(int worldWidth, int worldHeight, int groundCount, int entityCount, bool shrinkFarm)
+    {
+        if (_gridHookCount == 0)
+        {
+            return;
+        }
+
+        WorldGeneratedEvent worldEvent = new WorldGeneratedEvent(worldWidth, worldHeight, groundCount, entityCount, shrinkFarm);
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IGridHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnWorldGenerated", () => hooks.OnWorldGenerated(worldEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyGridObjectChanged(
+        GridObjectLayer layer,
+        GridObjectChangeKind changeKind,
+        int x,
+        int y,
+        string objectName,
+        string previousObjectName,
+        bool regrowGrass)
+    {
+        if (_gridHookCount == 0)
+        {
+            return;
+        }
+
+        GridObjectChangedEvent gridEvent = new GridObjectChangedEvent(
+            layer,
+            changeKind,
+            x,
+            y,
+            objectName,
+            previousObjectName,
+            regrowGrass);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IGridHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnGridObjectChanged", () => hooks.OnGridObjectChanged(gridEvent));
+                }
+            }
+        });
+    }
+
+    internal void NotifyGridSwapped(int sourceX, int sourceY, int destinationX, int destinationY, string sourceObjectName, string destinationObjectName)
+    {
+        if (_gridHookCount == 0)
+        {
+            return;
+        }
+
+        GridSwapEvent swapEvent = new GridSwapEvent(
+            sourceX,
+            sourceY,
+            destinationX,
+            destinationY,
+            sourceObjectName,
+            destinationObjectName);
+
+        DispatchCallback(() =>
+        {
+            foreach (LoadedMod loadedMod in _loadedMods)
+            {
+                if (loadedMod.Instance is IGridHooks hooks)
+                {
+                    SafeInvoke(loadedMod, "OnGridSwapped", () => hooks.OnGridSwapped(swapEvent));
+                }
+            }
+        });
     }
 
     internal void UpdateMods()
     {
+        FlushPendingCallbacks();
         foreach (LoadedMod loadedMod in _loadedMods)
         {
             SafeInvoke(loadedMod, "OnUpdate", loadedMod.Instance.OnUpdate);
         }
     }
 
+    internal void FlushPendingCallbacks()
+    {
+        while (true)
+        {
+            Action callback;
+            lock (_pendingCallbacksLock)
+            {
+                if (_pendingCallbacks.Count == 0)
+                {
+                    return;
+                }
+
+                callback = _pendingCallbacks.Dequeue();
+            }
+
+            callback();
+        }
+    }
+
     internal void Shutdown()
     {
+        FlushPendingCallbacks();
         foreach (LoadedMod loadedMod in _loadedMods)
         {
             SafeInvoke(loadedMod, "Shutdown", loadedMod.Instance.Shutdown);
@@ -156,6 +508,7 @@ internal sealed class ModHost
 
                 LoadedMod loadedMod = new LoadedMod(context.Id, context.Name, context.Version, instance, context, assemblyPath);
                 _loadedMods.Add(loadedMod);
+                RegisterOptionalHooks(instance);
 
                 SafeInvoke(loadedMod, "Initialize", () => loadedMod.Instance.Initialize(loadedMod.Context));
                 Plugin.LogInfo($"Loaded external mod: {loadedMod.Id} ({loadedMod.Name} {loadedMod.Version})");
@@ -164,6 +517,43 @@ internal sealed class ModHost
         catch (Exception ex)
         {
             Plugin.LogError($"Failed to load mod assembly {assemblyPath}: {ex}");
+        }
+    }
+
+    private void DispatchCallback(Action callback)
+    {
+        if (Environment.CurrentManagedThreadId == _mainThreadId)
+        {
+            callback();
+            return;
+        }
+
+        lock (_pendingCallbacksLock)
+        {
+            _pendingCallbacks.Enqueue(callback);
+        }
+    }
+
+    private void RegisterOptionalHooks(ITfwrMod instance)
+    {
+        if (instance is ISimulationHooks)
+        {
+            _simulationHookCount++;
+        }
+
+        if (instance is IExecutionHooks)
+        {
+            _executionHookCount++;
+        }
+
+        if (instance is IFarmHooks)
+        {
+            _farmHookCount++;
+        }
+
+        if (instance is IGridHooks)
+        {
+            _gridHookCount++;
         }
     }
 

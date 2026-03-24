@@ -1,13 +1,12 @@
 # Current Hook Surface
 
-This document separates two things that should stay aligned:
+This document lists the hook surface that is actually exposed by the harness.
 
-- host-level instrumentation patches already present in the harness
-- SDK callbacks that mod authors can use directly without writing their own Harmony patch
+All harness callbacks are delivered on the Unity main thread. That includes hooks that originate from the simulation thread, such as farm and grid mutations.
 
-## Current SDK Callbacks
+## Core Mod Lifecycle
 
-The current public author-facing callback surface is:
+Every mod implements `ITfwrMod`, typically through `TfwrModBase`:
 
 - `Initialize(IModContext context)`
 - `OnSceneLoaded(SceneEvent sceneEvent)`
@@ -19,14 +18,55 @@ The current public author-facing callback surface is:
 - `OnUpdate()`
 - `Shutdown()`
 
-## Current Built-In Host Patches
+## Optional Hook Interfaces
+
+Implement these interfaces only when you want those callbacks:
+
+### `ISimulationHooks`
+
+- `OnSimulationCreated(SimulationCreatedEvent simulationEvent)`
+- `OnSimulationRestored(SimulationRestoredEvent simulationEvent)`
+- `OnSimulationSpeedChanged(SimulationSpeedChangedEvent simulationEvent)`
+
+### `IExecutionHooks`
+
+- `OnExecutionCreated(ExecutionCreatedEvent executionEvent)`
+- `OnExecutionStopped(ExecutionStoppedEvent executionEvent)`
+
+### `IFarmHooks`
+
+- `OnUnlockChanged(UnlockChangedEvent unlockEvent)`
+- `OnDroneAdded(DroneAddedEvent droneEvent)`
+- `OnDroneRemoved(DroneRemovedEvent droneEvent)`
+
+### `IGridHooks`
+
+- `OnWorldGenerated(WorldGeneratedEvent worldEvent)`
+- `OnGridObjectChanged(GridObjectChangedEvent gridEvent)`
+- `OnGridSwapped(GridSwapEvent swapEvent)`
+
+## Built-In Host Patches
 
 The harness currently patches these game methods itself:
 
 - `MainSim.SetupSim`
 - `MainSim.StartMainExecution`
 - `MainSim.StopMainExecution`
+- `MainSim.RestoreMainSim`
 - `Workspace.Start`
 - `Workspace.OpenCodeWindow`
+- `Simulation..ctor(...)`
+- `Simulation.ChangeExecutionSpeed`
+- `Simulation.StartProgramExecution`
+- `Simulation.StopProgramExecution`
+- `Farm.Unlock`
+- `Farm.AddDrone`
+- `Farm.RemoveDrone`
+- `Farm.RemoveSpawnedDrones`
+- `GridManager.GenerateWorld`
+- `GridManager.SetGround`
+- `GridManager.SetEntity`
+- `GridManager.RemoveEntity`
+- `GridManager.Swap`
 
-These are the hooks that currently drive the built-in SDK callbacks listed above.
+These are the patches that currently drive the public hook surface above.

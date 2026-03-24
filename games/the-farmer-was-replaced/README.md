@@ -11,6 +11,7 @@ What this harness provides:
 
 - a shared runtime host for third-party mods
 - a small SDK for external mod DLLs
+- first-class hook surfaces for simulation, execution, farm, workspace, and grid events
 - Harmony patch support through the harness
 - author scaffolding and an exported author kit
 - reverse-engineering/bootstrap scripts for setting up the modding surface

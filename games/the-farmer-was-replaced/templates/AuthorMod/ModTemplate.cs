@@ -4,6 +4,7 @@ using TFWR.ModHarness.SDK;
 
 namespace __MOD_ROOT_NAMESPACE__;
 
+// Add optional hook interfaces such as ISimulationHooks, IExecutionHooks, IFarmHooks, or IGridHooks when you want harness callbacks for those surfaces.
 public sealed class __MOD_CLASS_NAME__ : TfwrModBase
 {
     internal static IModContext ActiveContext { get; private set; }

@@ -8,7 +8,7 @@ The current automation was validated against the macOS Steam build, but the SDK 
 
 - A single BepInEx host plugin installed once per game install
 - A small SDK with lifecycle callbacks, logging, data directories, and snapshot helpers
-- Built-in callbacks for scene load, main-sim readiness, execution start/stop, workspace readiness, and code-window open events
+- Built-in lifecycle callbacks plus optional Simulation, Execution, Farm, and Grid hook interfaces
 - Harmony patch support through `IModContext.PatchAll()`
 - A dedicated runtime folder for third-party mods, shared SDK binaries, and per-mod data
 
@@ -47,6 +47,15 @@ If you want to stay resilient to minor game updates, you can also patch by strin
 - `OnCodeWindowOpened(CodeWindowEvent codeWindowEvent)`: called after `Workspace.OpenCodeWindow`
 - `OnUpdate()`: called every frame
 - `Shutdown()`: called when the host is unloading
+
+Optional grouped interfaces:
+
+- `ISimulationHooks`: simulation creation, restore, and speed changes
+- `IExecutionHooks`: execution lifecycle events beyond the main code-window run callback
+- `IFarmHooks`: unlock and drone lifecycle events
+- `IGridHooks`: world generation, grid-object mutation, and swap events
+
+Harness callbacks are delivered on the Unity main thread, including farm/grid hooks that originate from the background simulation loop.
 
 ## Harmony usage
 
