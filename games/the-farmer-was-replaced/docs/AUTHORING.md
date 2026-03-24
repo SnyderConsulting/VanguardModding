@@ -32,7 +32,7 @@ Each generated author project contains:
 
 ## When to reference game assemblies
 
-You only need `lib/game/*.dll` when your mod wants compile-time access to shipped types such as `MainSim`, `Workspace`, or `Simulation`.
+You only need `lib/game/*.dll` when your mod wants compile-time access to shipped game types such as `MainSim` or `Workspace`.
 
 If you want to stay resilient to minor game updates, you can also patch by string with `AccessTools.Method("TypeName:MethodName")` and avoid compile-time references to the game's own assemblies.
 
@@ -54,4 +54,4 @@ Call `Context.PatchAll()` in `Initialize()` if your assembly contains `[HarmonyP
 
 ## Hook Surface Notes
 
-The harness does not currently wrap every interesting game type as a first-class callback. The current public hook surface versus discovered game-side targets is documented in `docs/HOOKS.md`.
+The current public hook surface is documented in `docs/HOOKS.md`.

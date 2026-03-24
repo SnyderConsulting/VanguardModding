@@ -79,4 +79,3 @@ Generated locally, not committed:
 - That analyzed build is a Unity 6.0.0f1 Mono build, not IL2CPP.
 - The main gameplay code lives in `Core.dll`, with support code in `Utils.dll`.
 - The current author-facing hook surface is documented in `docs/HOOKS.md`.
-- Additional game-side targets that were identified during reverse engineering include `Simulation`, `Execution`, `Farm`, and `GridManager`, but they are not yet wrapped as first-class SDK callbacks.
