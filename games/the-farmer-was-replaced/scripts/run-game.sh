@@ -7,7 +7,9 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 "${SCRIPT_DIR}/deploy-plugin.sh"
 ensure_steam_appid
 
-[[ -f "${RUN_BEPINEX_SCRIPT}" ]] || die "missing run_bepinex.sh in ${GAME_ROOT}"
-
 cd "${GAME_ROOT}"
-exec "${RUN_BEPINEX_SCRIPT}"
+if [[ -f "${RUN_BEPINEX_SCRIPT}" ]]; then
+  exec "${RUN_BEPINEX_SCRIPT}"
+fi
+
+exec "${GAME_ENTRY_PATH}"

@@ -34,6 +34,26 @@ public sealed class ExampleHelloMod : TfwrModBase
         Context.WriteSnapshot("example-main-sim-ready");
     }
 
+    public override void OnMainExecutionStarted(MainExecutionStartedEvent executionEvent)
+    {
+        Context.Logger.Info($"Execution started: file={executionEvent.FileName}, executionId={executionEvent.ExecutionId}");
+    }
+
+    public override void OnMainExecutionStopped(MainExecutionStoppedEvent executionEvent)
+    {
+        Context.Logger.Info($"Execution stopped: executionId={executionEvent.ExecutionId}, simulating={executionEvent.IsSimulating}");
+    }
+
+    public override void OnWorkspaceReady(WorkspaceEvent workspaceEvent)
+    {
+        Context.Logger.Info($"Workspace ready: openWindows={workspaceEvent.OpenWindowCount}, codeWindows={workspaceEvent.CodeWindowCount}");
+    }
+
+    public override void OnCodeWindowOpened(CodeWindowEvent codeWindowEvent)
+    {
+        Context.Logger.Info($"Code window opened: {codeWindowEvent.FileName}");
+    }
+
     public override void Shutdown()
     {
         Context.Logger.Info("Shutdown");

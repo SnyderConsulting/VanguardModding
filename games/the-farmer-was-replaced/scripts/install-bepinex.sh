@@ -10,6 +10,8 @@ ensure_game_layout
 
 mkdir -p "${CACHE_DIR}"
 
+[[ -n "${BEPINEX_URL}" ]] || die "BepInEx download URL is not configured for platform '${HOST_PLATFORM}'. Set TFWR_BEPINEX_URL or TFWR_BEPINEX_ARCHIVE."
+
 archive_path="${CACHE_DIR}/${BEPINEX_ARCHIVE}"
 extract_dir="${CACHE_DIR}/bepinex-${BEPINEX_VERSION}"
 
@@ -25,7 +27,7 @@ rsync -a "${extract_dir}/" "${GAME_ROOT}/"
 
 if [[ -f "${RUN_BEPINEX_SCRIPT}" ]]; then
   chmod u+x "${RUN_BEPINEX_SCRIPT}"
-  if grep -q '^executable_name=' "${RUN_BEPINEX_SCRIPT}"; then
+  if [[ -n "${GAME_ENTRY_NAME}" ]] && grep -q '^executable_name=' "${RUN_BEPINEX_SCRIPT}"; then
     sed -i.bak "s#^executable_name=.*#executable_name=\"${GAME_APP_NAME}\"#" "${RUN_BEPINEX_SCRIPT}"
   fi
 fi

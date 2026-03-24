@@ -58,6 +58,14 @@ public interface ITfwrMod
 
     void OnMainSimReady();
 
+    void OnMainExecutionStarted(MainExecutionStartedEvent executionEvent);
+
+    void OnMainExecutionStopped(MainExecutionStoppedEvent executionEvent);
+
+    void OnWorkspaceReady(WorkspaceEvent workspaceEvent);
+
+    void OnCodeWindowOpened(CodeWindowEvent codeWindowEvent);
+
     void OnUpdate();
 
     void Shutdown();
@@ -83,6 +91,22 @@ public abstract class TfwrModBase : ITfwrMod
     }
 
     public virtual void OnMainSimReady()
+    {
+    }
+
+    public virtual void OnMainExecutionStarted(MainExecutionStartedEvent executionEvent)
+    {
+    }
+
+    public virtual void OnMainExecutionStopped(MainExecutionStoppedEvent executionEvent)
+    {
+    }
+
+    public virtual void OnWorkspaceReady(WorkspaceEvent workspaceEvent)
+    {
+    }
+
+    public virtual void OnCodeWindowOpened(CodeWindowEvent codeWindowEvent)
     {
     }
 
@@ -112,4 +136,56 @@ public sealed class SceneEvent
     public int RootCount { get; }
 
     public bool IsLoaded { get; }
+}
+
+public sealed class MainExecutionStartedEvent
+{
+    public MainExecutionStartedEvent(string fileName, int executionId, double timeFactor)
+    {
+        FileName = fileName ?? string.Empty;
+        ExecutionId = executionId;
+        TimeFactor = timeFactor;
+    }
+
+    public string FileName { get; }
+
+    public int ExecutionId { get; }
+
+    public double TimeFactor { get; }
+}
+
+public sealed class MainExecutionStoppedEvent
+{
+    public MainExecutionStoppedEvent(int executionId, bool isSimulating)
+    {
+        ExecutionId = executionId;
+        IsSimulating = isSimulating;
+    }
+
+    public int ExecutionId { get; }
+
+    public bool IsSimulating { get; }
+}
+
+public sealed class WorkspaceEvent
+{
+    public WorkspaceEvent(int openWindowCount, int codeWindowCount)
+    {
+        OpenWindowCount = openWindowCount;
+        CodeWindowCount = codeWindowCount;
+    }
+
+    public int OpenWindowCount { get; }
+
+    public int CodeWindowCount { get; }
+}
+
+public sealed class CodeWindowEvent
+{
+    public CodeWindowEvent(string fileName)
+    {
+        FileName = fileName ?? string.Empty;
+    }
+
+    public string FileName { get; }
 }

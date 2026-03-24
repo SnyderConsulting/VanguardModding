@@ -4,6 +4,8 @@ This harness is the shared runtime layer for mods that target **The Farmer Was R
 
 It does not add gameplay on its own. You use it because another mod depends on it, or because you want a stable way to load compatible external mods.
 
+The harness is not conceptually tied to macOS, but the current scripted setup has only been validated against the macOS Steam build so far.
+
 ## Basic Setup
 
 1. Make sure the game is installed locally.
@@ -28,5 +30,6 @@ If a mod ships extra dependency DLLs, keep them in the same mod folder.
 ## Troubleshooting
 
 - If the game was installed somewhere else, set `TFWR_GAME_ROOT` before running the scripts.
+- If your platform uses a different executable or data layout, also set `TFWR_GAME_ENTRY_PATH`, `TFWR_GAME_DATA_DIR`, or `TFWR_MANAGED_DIR`.
 - If a mod does not load, check `./scripts/tail-log.sh` first.
 - If the game was launched directly through Steam before setup, re-run `./scripts/bootstrap.sh` and then `./scripts/run-game.sh`.

@@ -2,9 +2,10 @@
 
 This folder contains Vanguard Modding's first published game harness: a BepInEx-based runtime and SDK for **The Farmer Was Replaced**.
 
-Game install note:
+Platform note:
 
-- The scripts assume the standard Steam install location on macOS unless `TFWR_GAME_ROOT` is set.
+- The harness itself is not tied to macOS, but the current automation has only been validated against the macOS Steam build so far.
+- Override `TFWR_GAME_ROOT`, `TFWR_GAME_ENTRY_PATH`, `TFWR_GAME_DATA_DIR`, `TFWR_MANAGED_DIR`, `TFWR_BEPINEX_ARCHIVE`, or `TFWR_BEPINEX_URL` if your install layout differs.
 
 What this harness provides:
 
@@ -33,6 +34,7 @@ Player notes:
 More detail for players:
 
 - `docs/PLAYERS.md`
+- `docs/HOOKS.md`
 
 ## For Mod Authors
 
@@ -53,6 +55,7 @@ Author notes:
 More detail for authors:
 
 - `docs/AUTHORING.md`
+- `docs/HOOKS.md`
 
 ## Repository Layout
 
@@ -72,7 +75,8 @@ Generated locally, not committed:
 
 ## Current Findings
 
-- The game is a Unity 6.0.0f1 title.
-- The macOS build is a Unity Mono build, not IL2CPP.
+- The currently analyzed build is the macOS Steam build.
+- That analyzed build is a Unity 6.0.0f1 Mono build, not IL2CPP.
 - The main gameplay code lives in `Core.dll`, with support code in `Utils.dll`.
-- High-value hook points include `MainSim`, `Simulation`, `Execution`, `Workspace`, `Farm`, and `GridManager`.
+- The current author-facing hook surface is documented in `docs/HOOKS.md`.
+- Additional game-side targets that were identified during reverse engineering include `Simulation`, `Execution`, `Farm`, and `GridManager`, but they are not yet wrapped as first-class SDK callbacks.

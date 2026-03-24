@@ -272,6 +272,7 @@ internal static class MainSimStartMainExecutionPatch
     {
         string fileName = cw != null ? cw.fileName : "<null>";
         Plugin.LogInfo($"MainSim.StartMainExecution: file={fileName}, executionId={__instance.executionId}, timeFactor={__instance.TimeFactor}");
+        Plugin.Host?.NotifyMainExecutionStarted(fileName, __instance.executionId, __instance.TimeFactor);
     }
 }
 
@@ -281,6 +282,7 @@ internal static class MainSimStopMainExecutionPatch
     private static void Postfix(MainSim __instance)
     {
         Plugin.LogInfo($"MainSim.StopMainExecution: executionId={__instance.executionId}, simulating={__instance.IsSimulating()}");
+        Plugin.Host?.NotifyMainExecutionStopped(__instance.executionId, __instance.IsSimulating());
     }
 }
 
@@ -290,6 +292,7 @@ internal static class WorkspaceStartPatch
     private static void Postfix(Workspace __instance)
     {
         Plugin.LogInfo($"Workspace.Start: openWindows={__instance.openWindows.Count}, codeWindows={__instance.codeWindows.Count}");
+        Plugin.Host?.NotifyWorkspaceReady(__instance.openWindows.Count, __instance.codeWindows.Count);
     }
 }
 
@@ -299,5 +302,6 @@ internal static class WorkspaceOpenCodeWindowPatch
     private static void Postfix(string fileName)
     {
         Plugin.LogInfo($"Workspace.OpenCodeWindow: {fileName}");
+        Plugin.Host?.NotifyCodeWindowOpened(fileName);
     }
 }

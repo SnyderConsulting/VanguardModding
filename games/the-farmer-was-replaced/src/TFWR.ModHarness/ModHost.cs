@@ -72,6 +72,42 @@ internal sealed class ModHost
         }
     }
 
+    internal void NotifyMainExecutionStarted(string fileName, int executionId, double timeFactor)
+    {
+        MainExecutionStartedEvent executionEvent = new MainExecutionStartedEvent(fileName, executionId, timeFactor);
+        foreach (LoadedMod loadedMod in _loadedMods)
+        {
+            SafeInvoke(loadedMod, "OnMainExecutionStarted", () => loadedMod.Instance.OnMainExecutionStarted(executionEvent));
+        }
+    }
+
+    internal void NotifyMainExecutionStopped(int executionId, bool isSimulating)
+    {
+        MainExecutionStoppedEvent executionEvent = new MainExecutionStoppedEvent(executionId, isSimulating);
+        foreach (LoadedMod loadedMod in _loadedMods)
+        {
+            SafeInvoke(loadedMod, "OnMainExecutionStopped", () => loadedMod.Instance.OnMainExecutionStopped(executionEvent));
+        }
+    }
+
+    internal void NotifyWorkspaceReady(int openWindowCount, int codeWindowCount)
+    {
+        WorkspaceEvent workspaceEvent = new WorkspaceEvent(openWindowCount, codeWindowCount);
+        foreach (LoadedMod loadedMod in _loadedMods)
+        {
+            SafeInvoke(loadedMod, "OnWorkspaceReady", () => loadedMod.Instance.OnWorkspaceReady(workspaceEvent));
+        }
+    }
+
+    internal void NotifyCodeWindowOpened(string fileName)
+    {
+        CodeWindowEvent codeWindowEvent = new CodeWindowEvent(fileName);
+        foreach (LoadedMod loadedMod in _loadedMods)
+        {
+            SafeInvoke(loadedMod, "OnCodeWindowOpened", () => loadedMod.Instance.OnCodeWindowOpened(codeWindowEvent));
+        }
+    }
+
     internal void UpdateMods()
     {
         foreach (LoadedMod loadedMod in _loadedMods)

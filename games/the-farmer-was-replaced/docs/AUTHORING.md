@@ -2,10 +2,13 @@
 
 The harness is the host. Third-party mods are normal `.dll` files that implement `TFWR.ModHarness.SDK.ITfwrMod` and are dropped under `BepInEx/TFWR.ModHarness/mods`.
 
+The current automation was validated against the macOS Steam build, but the SDK and external mod model are not inherently macOS-specific.
+
 ## What the harness provides
 
 - A single BepInEx host plugin installed once per game install
 - A small SDK with lifecycle callbacks, logging, data directories, and snapshot helpers
+- Built-in callbacks for scene load, main-sim readiness, execution start/stop, workspace readiness, and code-window open events
 - Harmony patch support through `IModContext.PatchAll()`
 - A dedicated runtime folder for third-party mods, shared SDK binaries, and per-mod data
 
@@ -38,9 +41,17 @@ If you want to stay resilient to minor game updates, you can also patch by strin
 - `Initialize(IModContext context)`: first entry point for startup work
 - `OnSceneLoaded(SceneEvent sceneEvent)`: called on Unity scene load
 - `OnMainSimReady()`: called after `MainSim.SetupSim`
+- `OnMainExecutionStarted(MainExecutionStartedEvent executionEvent)`: called when `MainSim.StartMainExecution` begins
+- `OnMainExecutionStopped(MainExecutionStoppedEvent executionEvent)`: called after `MainSim.StopMainExecution`
+- `OnWorkspaceReady(WorkspaceEvent workspaceEvent)`: called after `Workspace.Start`
+- `OnCodeWindowOpened(CodeWindowEvent codeWindowEvent)`: called after `Workspace.OpenCodeWindow`
 - `OnUpdate()`: called every frame
 - `Shutdown()`: called when the host is unloading
 
 ## Harmony usage
 
 Call `Context.PatchAll()` in `Initialize()` if your assembly contains `[HarmonyPatch]` classes. The host allocates a dedicated Harmony id per mod and automatically calls `UnpatchSelf()` during shutdown.
+
+## Hook Surface Notes
+
+The harness does not currently wrap every interesting game type as a first-class callback. The current public hook surface versus discovered game-side targets is documented in `docs/HOOKS.md`.
